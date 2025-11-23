@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ukrainian Cyborgs v1.1</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <style>
+        /* --- CYBERPUNK THEME --- */
+        :root {
+            --primary: #00BFFF;
+            --accent: #FFD700;
+            --bronze: #cd7f32;
+            --silver: #c0c0c0;
+            --gold: #FFD700;
+            --diamond: #b9f2ff;
+            --bg-dark: #050505;
+            --card-bg: #141414;
+            --danger: #ff3b30;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: var(--bg-dark);
+            color: #fff; margin: 0; padding: 0;
+            display: flex; flex-direction: column; align-items: center;
+            height: 100vh; overflow: hidden;
+            user-select: none; -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            padding-bottom: 90px;
+        }
+
+        /* ФОН */
+        .bg-fx {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 50%, #112, #000);
+            z-index: -2;
+        }
+
+        /* ІНТРО */
+        #intro-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 9999; display: flex; 
+            flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.5s;
+        }
+        .intro-msg { color: var(--primary); font-size: 18px; letter-spacing: 2px; animation: blink 1s infinite; text-align: center; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* HEADER & SETTINGS */
+        .top-bar {
+            width: 100%; max-width: 420px; padding: 10px 15px; 
+            display: flex; justify-content: space-between; align-items: center;
+            box-sizing: border-box;
+        }
+        .settings-icon { font-size: 24px; cursor: pointer; opacity: 0.7; }
+
+        /* ГОЛОВНИЙ ЕКРАН */
+        .container { width: 100%; max-width: 420px; padding: 0 15px; box-sizing: border-box; text-align: center; z-index: 1; flex-grow: 1; display: flex; flex-direction: column; }
+
+        h1 { font-family: sans-serif; font-size: 20px; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; margin: 0; text-shadow: 0 0 10px var(--accent); }
+
+        .balance-val { font-size: 46px; font-weight: 800; font-family: sans-serif; text-shadow: 0 0 15px var(--primary); margin-top: 10px; }
+        
+        /* LEAGUE BADGE */
+        .league-badge {
+            display: inline-block; padding: 4px 12px; border-radius: 12px;
+            background: rgba(255,255,255,0.1); border: 1px solid #444;
+            font-size: 12px; font-weight: bold; margin-top: 5px; color: #ccc;
+            transition: all 0.3s ease;
+        }
+
+        /* КНОПКА-ТРИЗУБ */
+        .clicker-area {
+            flex-grow: 1; display: flex; justify-content: center; align-items: center;
+            margin: 10px 0; position: relative;
+            width: 100%; /* Hitbox optimization */
+        }
+        .main-btn {
+            width: 75vw; height: 75vw; max-width: 290px; max-height: 290px; /* Responsive size */
+            border-radius: 50%;
+            background: radial-gradient(circle, #152b3c, #000);
+            border: 3px solid #333;
+            box-shadow: 0 0 30px rgba(0, 191, 255, 0.1);
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; position: relative; overflow: hidden;
+            transition: transform 0.05s, box-shadow 0.3s;
+            -webkit-touch-callout: none;
+        }
+        
+        /* Активний стан (якщо анімації увімкнені) */
+        .main-btn.anim-active:active { transform: scale(0.96); border-color: var(--accent); }
+        .main-btn.anim-active.tap-highlight { filter: brightness(1.3); }
+
+        /* Diamond Effect */
+        .diamond-mode {
+            box-shadow: 0 0 50px var(--diamond), inset 0 0 20px var(--diamond) !important;
+            border-color: var(--diamond) !important;
+            animation: diamondPulse 2s infinite;
+        }
+        @keyframes diamondPulse { 0% { box-shadow: 0 0 50px var(--diamond); } 50% { box-shadow: 0 0 80px var(--diamond); } 100% { box-shadow: 0 0 50px var(--diamond); } }
+
+        /* SVG ТРИЗУБ */
+        .trident-svg { width: 70%; height: 70%; filter: drop-shadow(0 0 15px var(--primary)); pointer-events: none; }
+        @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+        .trident-anim { animation: breathe 3s infinite ease-in-out; }
+
+        /* ЕНЕРГІЯ */
+        .energy-bar {
+            width: 100%; height: 10px; background: #222; border-radius: 5px;
+            overflow: hidden; margin-top: auto; margin-bottom: 5px; border: 1px solid #444;
+        }
+        .energy-fill { height: 100%; background: linear-gradient(90deg, var(--primary), #0055ff); width: 100%; transition: width 0.3s; }
+        .energy-info { display: flex; justify-content: space-between; font-size: 12px; color: #ccc; margin-bottom: 15px; font-family: sans-serif; }
+
+        /* АВТО-БОТ ПАНЕЛЬ */
+        .bot-panel {
+            background: rgba(0, 191, 255, 0.15); border: 1px solid var(--primary);
+            border-radius: 12px; padding: 10px 15px; margin-bottom: 15px;
+            display: none; justify-content: space-between; align-items: center;
+        }
+
+        /* ЦИФРИ (+1) */
+        .floating-txt {
+            position: absolute; color: #fff; font-weight: 900; font-size: 36px;
+            text-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary);
+            pointer-events: none; z-index: 1000;
+            animation: floatUp 0.6s ease-out forwards;
+        }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-100px) scale(1.5); opacity: 0; } }
+
+        /* НАВІГАЦІЯ */
+        .nav-bar {
+            position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%);
+            width: 92%; max-width: 400px; background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(10px); border-radius: 20px; border: 1px solid #333;
+            display: flex; justify-content: space-around; padding: 10px; z-index: 100;
+        }
+        .nav-btn { background: none; border: none; color: #666; font-size: 10px; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+        .nav-btn.active { color: var(--accent); }
+        .nav-icon { font-size: 22px; margin-bottom: 4px; }
+
+        /* МОДАЛКИ */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: flex-end; }
+        .modal-card { background: #111; width: 100%; max-width: 500px; border-radius: 25px 25px 0 0; padding: 25px; max-height: 80vh; overflow-y: auto; border-top: 2px solid var(--primary); color: #fff; box-sizing: border-box; }
+        .close-btn { position: absolute; top: 20px; right: 20px; font-size: 24px; color: #666; cursor: pointer; }
+        
+        .upg-row { display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 15px; border-radius: 12px; margin-bottom: 10px; border: 1px solid #333; }
+        .btn { background: var(--primary); color: #000; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; }
+        .btn:disabled { background: #333; color: #555; }
+        
+        /* Toggle Switch */
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+    </style>
+</head>
+<body>
+
+    <div id="intro-layer" onclick="startGame()">
+        <div class="intro-msg">
+            SYSTEM DETECTED<br>
+            <span style="font-size:12px; color:#555; margin-top:10px; display:block;">[ TAP TO INITIALIZE ]</span>
+        </div>
+    </div>
+
+    <div class="bg-fx"></div>
+
+    <div class="top-bar">
+        <div></div>
+        <div class="settings-icon" onclick="openModal('settingsModal')">⚙️</div>
+    </div>
+
+    <div class="container">
+        <h1 id="ui_title">UKRAINIAN CYBORGS</h1>
+
+        <div>
+            <div class="balance-val" id="displayBalance">0</div>
+            <div class="league-badge" id="leagueDisplay">Bronze League</div>
+        </div>
+
+        <div class="bot-panel" id="botPanel">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:24px;">🤖</span>
+                <div style="text-align:left;">
+                    <div style="font-size:12px; color:#aaa;" id="txt_bot_stat">Авто-Бот</div>
+                    <div style="font-family:monospace; font-weight:bold;" id="botTimer">04:00:00</div>
+                </div>
+            </div>
+            <button class="btn" id="claimBotBtn" onclick="claimBot()">CLAIM</button>
+        </div>
+
+        <div class="clicker-area">
+            <div class="main-btn" id="tapBtn">
+                <svg class="trident-svg trident-anim" viewBox="0 0 512 512">
+                    <defs>
+                        <linearGradient id="grad1" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style="stop-color:#00BFFF;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#FFD700;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <path fill="url(#grad1)" d="M256 32C242.7 32 232 42.7 232 56V192C232 222.9 206.9 248 176 248C145.1 248 120 222.9 120 192V88C120 74.7 109.3 64 96 64C82.7 64 72 74.7 72 88V192C72 249.4 118.6 296 176 296H200V424H152C138.7 424 128 434.7 128 448C128 461.3 138.7 472 152 472H360C373.3 472 384 461.3 384 448C384 434.7 373.3 424 360 424H312V296H336C393.4 296 440 249.4 440 192V88C440 74.7 429.3 64 416 64C402.7 64 392 74.7 392 88V192C392 222.9 366.9 248 336 248C305.1 248 280 222.9 280 192V56C280 42.7 269.3 32 256 32z"/>
+                </svg>
+            </div>
+            <div id="turboTimer" style="display:none; position:absolute; bottom:-30px; color:#ff3b30; font-weight:bold;"></div>
+        </div>
+
+        <div class="energy-bar"><div class="energy-fill" id="energyFill"></div></div>
+        <div class="energy-info">
+            <span>⚡ <span id="enVal">1000</span> / <span id="enMax">1000</span></span>
+            <span id="regenState" style="color:var(--primary); display:none;">Charging...</span>
+        </div>
+    </div>
+
+    <div class="nav-bar">
+        <button class="nav-btn active" onclick="closeModals()"><div class="nav-icon">🏠</div>Base</button>
+        <button class="nav-btn" onclick="openModal('upgModal')"><div class="nav-icon">🛠</div>Upgrade</button>
+        <button class="nav-btn" onclick="openModal('friendsModal')"><div class="nav-icon">👥</div>Team</button>
+        <button class="nav-btn" onclick="openModal('walletModal')"><div class="nav-icon">💎</div>Wallet</button>
+    </div>
+
+    <div id="upgModal" class="modal">
+        <div class="modal-card">
+            <span class="close-btn" onclick="closeModals()">&times;</span>
+            <h2>АРСЕНАЛ</h2>
+            
+            <div class="upg-row" style="border-color:var(--accent);">
+                <div>
+                    <div style="font-size:14px; font-weight:bold; color:var(--accent);">🤖 Авто-Бот</div>
+                    <div style="font-size:10px; color:#888;">Збирає поки ти офлайн (4 год)</div>
+                </div>
+                <button class="btn" id="buyBotBtn" onclick="buyBot()">50,000</button>
+            </div>
+
+            <div class="upg-row" style="border-color:var(--danger);">
+                <div>
+                    <div style="font-size:14px; font-weight:bold; color:var(--danger);">🚀 Ракета (x10)</div>
+                    <div style="font-size:10px; color:#888;">Буст на 10 секунд</div>
+                </div>
+                <button class="btn" style="background:var(--danger); color:#fff;" onclick="activateRocket()">START</button>
+            </div>
+
+            <hr style="border-color:#333; margin:15px 0;">
+            <div id="upgradesList"></div>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="modal">
+        <div class="modal-card">
+            <span class="close-btn" onclick="closeModals()">&times;</span>
+            <h2>НАЛАШТУВАННЯ</h2>
+            <div class="upg-row" style="border-color:#555;">
+                <div>
+                    <div style="font-size:14px; font-weight:bold;">Анімації</div>
+                    <div style="font-size:10px; color:#888;">Ефекти натискання</div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="animToggle" onchange="toggleAnim()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div style="text-align:center; color:#555; font-size:10px; margin-top:20px;">
+                Cyborg v1.1 <br> No Audio Edition
+            </div>
+        </div>
+    </div>
+
+    <div id="friendsModal" class="modal"><div class="modal-card"><span class="close-btn" onclick="closeModals()">&times;</span><h2>Бригада</h2><p style="color:#888;">+2500 за друга</p><button class="btn" style="width:100%" onclick="invite()">Запросити</button></div></div>
+    <div id="walletModal" class="modal"><div class="modal-card"><span class="close-btn" onclick="closeModals()">&times;</span><h2>Вивід</h2><div id="ton-btn"></div><p style="text-align:center; margin-top:20px; color:#555;">🔒 До 05.02.2026</p></div></div>
+
+    <script>
+        // --- КОНФІГУРАЦІЯ ---
+        const TG = window.Telegram.WebApp;
+        TG.expand(); TG.setHeaderColor('#050505');
+
+        // Елементи інтерфейсу
+        const elBalance = document.getElementById('displayBalance');
+        const elEnergyFill = document.getElementById('energyFill');
+        const elEnVal = document.getElementById('enVal');
+        const elEnMax = document.getElementById('enMax');
+        const elRegenState = document.getElementById('regenState');
+        const elBotPanel = document.getElementById('botPanel');
+        const elBotTimer = document.getElementById('botTimer');
+        const elClaimBtn = document.getElementById('claimBotBtn');
+        const elTurbo = document.getElementById('turboTimer');
+        const elTapBtn = document.getElementById('tapBtn');
+        const elIntro = document.getElementById('intro-layer');
+        const elLeague = document.getElementById('leagueDisplay');
+
+        // Економіка та Ліги
+        const LEAGUES = [
+            { name: "Bronze", limit: 0, reward: 0, color: "var(--bronze)" },
+            { name: "Silver", limit: 50000, reward: 5000, color: "var(--silver)" },
+            { name: "Gold", limit: 500000, reward: 25000, color: "var(--gold)" },
+            { name: "Diamond", limit: 10000000, reward: 100000, color: "var(--diamond)" }
+        ];
+
+        // СТАН ГРИ
+        let game = {
+            balance: 0,
+            energy: 1000,
+            leagueIndex: 0,
+            hasPlayed: false,
+            hasBot: false,
+            botStartTime: 0,
+            turboEnd: 0,
+            clickCount: 0,
+            settings: { animations: true },
+            upgrades: {
+                tap: { lvl: 1, base: 500, factor: 2, val: 1 },
+                eng: { lvl: 1, base: 500, factor: 2, val: 1000 },
+                reg: { lvl: 1, base: 1000, factor: 2.5, val: 2 }
+            }
+        };
+
+        // --- ІНІЦІАЛІЗАЦІЯ ---
+        function init() {
+            loadGame();
+
+            if (!game.hasPlayed) {
+                game.balance = 5000;
+                game.hasPlayed = true;
+                saveGame();
+            }
+
+            // Init Settings UI
+            document.getElementById('animToggle').checked = game.settings.animations;
+            applyAnimationsSetting();
+
+            updateUI();
+            checkLeague(); // Перевірка ліги при старті
+            renderUpgrades();
+
+            setInterval(() => {
+                regenEnergy();
+                updateBot();
+                checkTurbo();
+            }, 1000);
+
+            setInterval(() => { game.clickCount = 0; }, 2000);
+
+            new TON_CONNECT_UI.TonConnectUI({
+                manifestUrl: 'https://raw.githubusercontent.com/ton-community/tutorials/main/03-client/test/public/tonconnect-manifest.json',
+                buttonRootId: 'ton-btn'
+            });
+        }
+
+        // --- ОСНОВНА ЛОГІКА ---
+
+        window.startGame = () => {
+            elIntro.style.opacity = '0';
+            setTimeout(() => elIntro.style.display = 'none', 500);
+        };
+
+        // Клік
+        elTapBtn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+
+            if(game.clickCount > 35) return; 
+            
+            let power = game.upgrades.tap.val + (game.upgrades.tap.lvl - 1);
+            if (Date.now() < game.turboEnd) power *= 10;
+
+            if (game.energy >= power) {
+                game.balance += power;
+                game.energy -= power;
+                game.clickCount++;
+                
+                if(TG.HapticFeedback) TG.HapticFeedback.impactOccurred('light');
+
+                // Анімація кнопки (якщо включена)
+                if(game.settings.animations) {
+                    // Micro-scaling handled by class check in CSS/JS logic below, 
+                    // but we can add an extra JS trigger for instant feedback
+                    elTapBtn.style.transform = "scale(0.97)";
+                    setTimeout(() => elTapBtn.style.transform = "scale(1)", 80);
+                    
+                    showFloatingText(e.clientX, e.clientY, `+${power}`);
+                }
+
+                updateUI();
+                checkLeague(); // Перевірка прогресу ліги
+                saveGame();
+            }
+        });
+
+        function showFloatingText(x, y, txt) {
+            let el = document.createElement('div');
+            el.className = 'floating-txt';
+            el.textContent = txt;
+            el.style.left = (x - 20) + 'px';
+            el.style.top = (y - 40) + 'px';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 600);
+        }
+
+        // --- ЛІГИ ---
+        function checkLeague() {
+            let currentLvl = game.leagueIndex;
+            let nextLvl = currentLvl + 1;
+
+            if (nextLvl < LEAGUES.length) {
+                if (game.balance >= LEAGUES[nextLvl].limit) {
+                    // Level Up
+                    game.leagueIndex = nextLvl;
+                    let reward = LEAGUES[nextLvl].reward;
+                    game.balance += reward;
+                    
+                    TG.showAlert(`🏆 Rank Up! ${LEAGUES[nextLvl].name} League\nBonus: +${reward} UCBG`);
+                    
+                    saveGame();
+                    updateUI();
+                }
+            }
+        }
+
+        // --- НАЛАШТУВАННЯ ---
+        window.toggleAnim = () => {
+            game.settings.animations = document.getElementById('animToggle').checked;
+            applyAnimationsSetting();
+            saveGame();
+        };
+
+        function applyAnimationsSetting() {
+            if(game.settings.animations) {
+                elTapBtn.classList.add('anim-active');
+                document.querySelector('.trident-svg').classList.add('trident-anim');
+            } else {
+                elTapBtn.classList.remove('anim-active');
+                document.querySelector('.trident-svg').classList.remove('trident-anim');
+            }
+        }
+
+        // Регенерація
+        function regenEnergy() {
+            let max = game.upgrades.eng.val;
+            if (game.energy < max) {
+                game.energy = Math.min(max, game.energy + game.upgrades.reg.val);
+                updateUI();
+            }
+        }
+
+        // --- ПОКРАЩЕННЯ ---
+        function renderUpgrades() {
+            const list = document.getElementById('upgradesList');
+            list.innerHTML = '';
+            const items = [
+                { id: 'tap', name: "Мультитап (+1)", desc: "Сила удару" },
+                { id: 'eng', name: "Енергія (+500)", desc: "Об'єм баку" },
+                { id: 'reg', name: "Швидкість (+2)", desc: "Відновлення" }
+            ];
+
+            items.forEach(i => {
+                let u = game.upgrades[i.id];
+                let cost = Math.floor(u.base * Math.pow(u.factor, u.lvl - 1));
+                
+                list.innerHTML += `
+                <div class="upg-row">
+                    <div>
+                        <div style="font-size:14px; font-weight:bold;">${i.name} <span style="color:var(--primary)">Lvl ${u.lvl}</span></div>
+                        <div style="font-size:10px; color:#888;">${i.desc}</div>
+                    </div>
+                    <button class="btn" onclick="buy('${i.id}', ${cost})" ${game.balance < cost ? 'disabled' : ''}>
+                        ${cost.toLocaleString()}
+                    </button>
+                </div>`;
+            });
+        }
+
+        window.buy = (id, cost) => {
+            if(game.balance >= cost) {
+                game.balance -= cost;
+                game.upgrades[id].lvl++;
+                if(id === 'eng') game.upgrades.eng.val += 500;
+                if(id === 'reg') game.upgrades.reg.val += 2;
+                updateUI(); renderUpgrades(); saveGame();
+            }
+        };
+
+        // --- СПЕЦІАЛЬНІ МОДУЛІ ---
+        window.buyBot = () => {
+            if(game.balance >= 50000 && !game.hasBot) {
+                game.balance -= 50000;
+                game.hasBot = true;
+                game.botStartTime = Date.now();
+                updateUI(); saveGame();
+            }
+        };
+
+        window.claimBot = () => {
+            game.balance += 10000;
+            game.botStartTime = Date.now();
+            TG.showAlert("🤖 Бот зібрав 10,000 UCBG!");
+            updateUI(); saveGame();
+        };
+
+        function updateBot() {
+            if(!game.hasBot) {
+                elBotPanel.style.display = 'none';
+                return;
+            }
+            elBotPanel.style.display = 'flex';
+            document.getElementById('buyBotBtn').textContent = "OWNED";
+            document.getElementById('buyBotBtn').disabled = true;
+
+            const diff = Date.now() - game.botStartTime;
+            const limit = 4 * 60 * 60 * 1000; 
+
+            if(diff >= limit) {
+                elBotTimer.textContent = "READY TO CLAIM";
+                elBotTimer.style.color = "#0f0";
+                elClaimBtn.disabled = false;
+            } else {
+                const left = limit - diff;
+                const h = Math.floor(left / 3600000);
+                const m = Math.floor((left % 3600000) / 60000);
+                const s = Math.floor((left % 60000) / 1000);
+                elBotTimer.textContent = `${h}:${m<10?'0'+m:m}:${s<10?'0'+s:s}`;
+                elBotTimer.style.color = "#fff";
+                elClaimBtn.disabled = true;
+            }
+        }
+
+        window.activateRocket = () => {
+            if(Date.now() < game.turboEnd) return;
+            game.turboEnd = Date.now() + 10000; 
+            closeModals();
+            updateUI();
+        };
+
+        function checkTurbo() {
+            if(Date.now() < game.turboEnd) {
+                elTurbo.style.display = 'block';
+                elTurbo.textContent = `🔥 РАКЕТА: ${Math.ceil((game.turboEnd - Date.now())/1000)}s`;
+                // Тільки зміна кольору, без скакання розмірів
+                elTapBtn.style.borderColor = 'var(--danger)';
+            } else {
+                elTurbo.style.display = 'none';
+                // Повертаємо стиль згідно ліги
+                if(game.leagueIndex === 3) {
+                     elTapBtn.style.borderColor = 'var(--diamond)';
+                } else {
+                     elTapBtn.style.borderColor = '#333';
+                }
+            }
+        }
+
+        // --- UI UPDATE ---
+        function updateUI() {
+            elBalance.innerText = game.balance.toLocaleString();
+            
+            // Energy
+            let cur = Math.floor(game.energy);
+            let max = game.upgrades.eng.val;
+            elEnVal.innerText = cur;
+            elEnMax.innerText = max;
+            elEnergyFill.style.width = (cur / max) * 100 + "%";
+
+            if (cur < max) {
+                elRegenState.style.display = 'block';
+                elRegenState.textContent = `⚡ Charging (+${game.upgrades.reg.val}/s)`;
+            } else {
+                elRegenState.style.display = 'none';
+            }
+
+            // League Update
+            let lInfo = LEAGUES[game.leagueIndex];
+            elLeague.textContent = `${lInfo.name} League`;
+            elLeague.style.color = lInfo.color;
+            elLeague.style.borderColor = lInfo.color;
+
+            // Diamond Effect
+            if(game.leagueIndex === 3) {
+                elTapBtn.classList.add('diamond-mode');
+            } else {
+                elTapBtn.classList.remove('diamond-mode');
+            }
+        }
+
+        window.invite = () => TG.openTelegramLink("https://t.me/share/url?url=https://t.me/ucbgcoin_bot");
+        
+        window.openModal = (id) => {
+            document.getElementById(id).style.display = 'flex';
+            if(id === 'upgModal') renderUpgrades();
+        };
+        window.closeModals = () => document.querySelectorAll('.modal').forEach(el => el.style.display = 'none');
+
+        // Save/Load
+        function saveGame() { localStorage.setItem('ucbg_v1_1', JSON.stringify(game)); }
+        function loadGame() {
+            let s = localStorage.getItem('ucbg_v1_1');
+            if(s) {
+                let d = JSON.parse(s);
+                // Merge to ensure new fields (like settings/league) exist for old saves
+                game = {...game, ...d};
+                // Ensure settings object exists
+                if(!game.settings) game.settings = { animations: true };
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
